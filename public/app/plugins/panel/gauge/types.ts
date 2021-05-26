@@ -4,6 +4,7 @@ import { SingleStatBaseOptions } from '@grafana/ui/src/components/SingleStatShar
 export interface GaugeOptions extends SingleStatBaseOptions {
   showThresholdLabels: boolean;
   showThresholdMarkers: boolean;
+  useLogScale: boolean;
 }
 
 export const orientationOptions: Array<SelectableValue<VizOrientation>> = [

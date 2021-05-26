@@ -18,6 +18,12 @@ export const plugin = new PanelPlugin<GaugeOptions>(GaugePanel)
         defaultValue: false,
       })
       .addBooleanSwitch({
+        path: 'useLogScale',
+        name: 'Use a logarithmic (base 10) scale',
+        description: 'Render the threshold values with a base 10 scale',
+        defaultValue: false,
+      })
+      .addBooleanSwitch({
         path: 'showThresholdMarkers',
         name: 'Show threshold markers',
         description: 'Renders the thresholds as an outer bar',

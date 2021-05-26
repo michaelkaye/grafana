@@ -14,12 +14,14 @@ import {
 } from '@grafana/data';
 import { Themeable } from '../../types';
 import { calculateFontSize } from '../../utils/measureText';
+import log from 'loglevel';
 
 export interface Props extends Themeable {
   height: number;
   field: FieldConfig;
   showThresholdMarkers: boolean;
   showThresholdLabels: boolean;
+  useLogScale: boolean;
   width: number;
   value: DisplayValue;
   text?: TextDisplayOptions;
@@ -33,6 +35,7 @@ export class Gauge extends PureComponent<Props> {
   static defaultProps: Partial<Props> = {
     showThresholdMarkers: true,
     showThresholdLabels: false,
+    useLogScale: false,
     field: {
       min: 0,
       max: 100,
@@ -55,7 +58,7 @@ export class Gauge extends PureComponent<Props> {
   }
 
   getFormattedThresholds(decimals: number): Threshold[] {
-    const { field, theme, value } = this.props;
+    const { field, theme, useLogScale, value } = this.props;
 
     if (field.color?.mode !== FieldColorModeId.Thresholds) {
       return [{ value: field.min ?? 0, color: value.color ?? FALLBACK_COLOR }];
@@ -63,6 +66,7 @@ export class Gauge extends PureComponent<Props> {
 
     const thresholds = field.thresholds ?? Gauge.defaultProps.field?.thresholds!;
     const isPercent = thresholds.mode === ThresholdsMode.Percentage;
+    const isLogMode = useLogScale;
     const steps = thresholds.steps;
 
     let min = field.min ?? 0;
@@ -72,10 +76,14 @@ export class Gauge extends PureComponent<Props> {
       min = 0;
       max = 100;
     }
-
     const first = getActiveThreshold(min, steps);
     const last = getActiveThreshold(max, steps);
     const formatted: Threshold[] = [];
+    if (isLogMode) {
+      min = Math.log10(min);
+      max = Math.log10(max);
+    }
+    log.info('UseLogMode: ' + isLogMode + ' min ' + min + ' max ' + max);
     formatted.push({ value: +min.toFixed(decimals), color: getColorForTheme(first.color, theme) });
     let skip = true;
     for (let i = 0; i < steps.length; i++) {
@@ -87,7 +95,11 @@ export class Gauge extends PureComponent<Props> {
         continue;
       }
       const prev = steps[i - 1];
-      formatted.push({ value: step.value, color: getColorForTheme(prev!.color, theme) });
+      if (isLogMode) {
+        formatted.push({ value: Math.log10(step.value), color: getColorForTheme(prev!.color, theme) });
+      } else {
+        formatted.push({ value: step.value, color: getColorForTheme(prev!.color, theme) });
+      }
       if (step === last) {
         break;
       }
@@ -97,7 +109,7 @@ export class Gauge extends PureComponent<Props> {
   }
 
   draw() {
-    const { field, showThresholdLabels, showThresholdMarkers, width, height, theme, value } = this.props;
+    const { field, showThresholdLabels, showThresholdMarkers, useLogScale, width, height, theme, value } = this.props;
 
     const autoProps = calculateGaugeAutoProps(width, height, value.title);
     const dimension = Math.min(width, autoProps.gaugeHeight);
@@ -117,7 +129,6 @@ export class Gauge extends PureComponent<Props> {
     let min = field.min ?? 0;
     let max = field.max ?? 100;
     let numeric = value.numeric;
-
     if (field.thresholds?.mode === ThresholdsMode.Percentage) {
       min = 0;
       max = 100;
@@ -134,7 +145,11 @@ export class Gauge extends PureComponent<Props> {
       min = +min.toFixed(decimals);
       max = +max.toFixed(decimals);
     }
-
+    if (useLogScale) {
+      numeric = Math.log10(numeric);
+      min = Math.log10(min);
+      max = Math.log10(max);
+    }
     const options: any = {
       series: {
         gauges: {
